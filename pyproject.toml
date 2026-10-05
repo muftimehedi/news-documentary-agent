@@ -1,0 +1,45 @@
+[project]
+name = "news-documentary-agent"
+version = "0.1.0"
+description = "News documentary deep agent: research, verify, produce, publish."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "deepagents==0.7.22",
+  "langgraph==1.2.13",
+  "langchain==1.4.3",
+  "langchain-core==1.6.6",
+  "langgraph-checkpoint-sqlite==3.1.1",
+  "pydantic>=2.7",
+  "pydantic-settings==2.15.0",
+  "feedparser>=6.0.11",
+  "gTTS==2.5.4",
+  "Pillow>=10.0",
+  "streamlit==1.65.0",
+  "google-api-python-client>=2.150",
+  "google-auth>=2.30",
+  "google-auth-oauthlib>=1.2",
+  "tavily-python>=0.5",
+  "langchain-openai>=0.3",
+  "langchain-google-genai>=2.0",
+  "langchain-anthropic>=0.3",
+  "python-dateutil>=2.9",
+  "tzdata>=2024.1",
+  "langchain-groq>=0.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.scripts]
+newsdoc = "news_documentary.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/news_documentary"]
+
+[tool.ruff]
+target-version = "py312"

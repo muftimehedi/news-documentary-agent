@@ -1,0 +1,35 @@
+[
+  {
+    "url": "fixture://dhaka-transport-route",
+    "publisher": "Fixture News Agency A",
+    "title": "ঢাকায় গণপরিবহনে নতুন রুট চালু",
+    "published_at": "2026-10-04T08:00:00+06:00",
+    "updated_at": "2026-10-04T09:00:00+06:00",
+    "event_time": "2026-10-04T07:30:00+06:00",
+    "excerpt": "ঢাকায় গণপরিবহনে নতুন রুট চালু হয়েছে। ফিক্সচার প্রতিবেদনে বলা হয়েছে সকাল থেকে বাস চলাচল শুরু করেছে। যাত্রীদের ভাড়া আগের মতোই থাকবে।",
+    "is_primary": true,
+    "fixture": true
+  },
+  {
+    "url": "fixture://dhaka-transport-route-confirm",
+    "publisher": "Fixture News Agency B",
+    "title": "নতুন বাস রুটে যাত্রী চলাচল শুরু",
+    "published_at": "2026-10-04T10:00:00+06:00",
+    "updated_at": "",
+    "event_time": "2026-10-04T07:30:00+06:00",
+    "excerpt": "নতুন বাস রুটে যাত্রী চলাচল শুরু হয়েছে। দ্বিতীয় ফিক্সচার সূত্রে একই ঘটনার স্বতন্ত্র প্রতিবেদন পাওয়া গেছে। ভাড়া অপরিবর্তিত রয়েছে।",
+    "is_primary": true,
+    "fixture": true
+  },
+  {
+    "url": "fixture://weather-buoy",
+    "publisher": "Fixture Met Office",
+    "title": "আগামীকাল হালকা বৃষ্টির সম্ভাবনা",
+    "published_at": "2026-10-04T06:00:00+06:00",
+    "updated_at": "",
+    "event_time": "2026-10-05T00:00:00+06:00",
+    "excerpt": "আবহাওয়া অধিদপ্তরের ফিক্সচার পূর্বাভাসে বলা হয়েছে আগামীকাল ঢাকায় হালকা বৃষ্টি হতে পারে। এটি মতামত নয়, পূর্বাভাস।",
+    "is_primary": true,
+    "fixture": true
+  }
+]
