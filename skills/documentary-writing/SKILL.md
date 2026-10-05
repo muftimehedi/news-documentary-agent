@@ -1,6 +1,6 @@
 ---
 name: documentary-writing
-description: Write original Bengali narration + scene plan grounded in verified claims.
+description: Write original narration (English default, Bengali supported) + scene plan grounded in verified claims.
 version: 1.0.0
 ---
 # Documentary writing procedure

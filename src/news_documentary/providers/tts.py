@@ -1,4 +1,4 @@
-"""TTS adapters. Fixture = offline beeps (labeled). gTTS = real Bengali-capable voice."""
+"""TTS adapters. Fixture = offline beeps (labeled). gTTS = real multilingual voice (incl. Bengali 'bn')."""
 from __future__ import annotations
 
 import math
@@ -42,7 +42,7 @@ class FixtureTtsAdapter:
 
 
 class GttsAdapter:
-    """Real TTS via gTTS. Verified: gTTS supports Bengali lang code 'bn'."""
+    """Real TTS via gTTS. Verified: supports English 'en' and Bengali 'bn'."""
 
     name = "gtts"
 

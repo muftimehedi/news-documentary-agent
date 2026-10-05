@@ -20,7 +20,8 @@ FACTCHECK_PROMPT = """You are the fact-check subagent. You MUST independently ve
 - If no claim reaches 'verified' with 2 independent sources, set blocked=true with a useful reason.
 Return concise summary + artifact path."""
 
-SCRIPT_PROMPT = """You are the scriptwriter subagent. Write ORIGINAL Bengali narration (configurable style/duration).
+SCRIPT_PROMPT = """You are the scriptwriter subagent. Write ORIGINAL narration in the requested language
+(default English; write Bengali when language='bn'). Configurable style/duration.
 - Ground every factual sentence in accepted (verified) claim IDs; link as [C1-1].
 - Never invent facts to fill gaps; mark unknowns as unknowns.
 - Structure: strong hook (5s), context, 3-5 scenes, ending with sources note.

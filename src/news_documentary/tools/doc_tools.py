@@ -100,9 +100,9 @@ def check_claim_support(claim_json: str, sources_json: str) -> str:
 
 
 @tool
-def estimate_narration_timing(text: str, lang: str = "bn") -> str:
+def estimate_narration_timing(text: str, lang: str = "en") -> str:
     """Estimate narration seconds from text (calibrated; real timing comes from TTS audio)."""
-    cps = 12.0 if lang == "bn" else 15.0
+    cps = 12.0 if lang.lower().startswith("bn") else 15.0
     return json.dumps({"chars": len(text), "est_seconds": round(len(text) / cps, 1), "lang": lang})
 
 

@@ -28,7 +28,7 @@ def build_subagents():
          "system_prompt": prompts.RESEARCH_PROMPT, "tools": [news_search, save_artifact, rank_topics]},
         {"name": "fact-checker", "description": "Independently verify claims with retrieval; report verified/disputed/unresolved.",
          "system_prompt": prompts.FACTCHECK_PROMPT, "tools": [news_search, save_artifact, extract_claims, check_claim_support]},
-        {"name": "scriptwriter", "description": "Write original Bengali narration + scene plan grounded in verified claims.",
+        {"name": "scriptwriter", "description": "Write original narration (English default, Bengali supported) + scene plan grounded in verified claims.",
          "system_prompt": prompts.SCRIPT_PROMPT, "tools": [save_artifact, estimate_narration_timing]},
         {"name": "media-preparer", "description": "Prepare assets, speech, captions, render manifest via dedicated tools.",
          "system_prompt": prompts.MEDIA_PROMPT, "tools": [save_artifact, build_render_manifest, estimate_narration_timing]},

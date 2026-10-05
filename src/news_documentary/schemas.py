@@ -57,7 +57,7 @@ class Scene(BaseModel):
 class Script(BaseModel):
     title: str = ""
     narration_full: str = ""
-    language: str = "bn"
+    language: str = "en"
     scenes: list[Scene] = []
     version: int = 1
 

@@ -116,7 +116,7 @@ EN_FIXTURE_SCRIPT = (
 
 def run_scriptwriter(topic: str, fact_report: dict, settings, job_dir: Path) -> dict:
     verified = fact_report.get("verified", [])
-    lang = (getattr(settings, "narration_lang", "bn") or "bn").lower()
+    lang = (getattr(settings, "narration_lang", "en") or "en").lower()
     is_bn = lang.startswith("bn")
     if not verified:
         narration = BN_FIXTURE_SCRIPT if is_bn else EN_FIXTURE_SCRIPT  # fallback: no verifiable claims, clearly labeled fixture text
@@ -143,7 +143,7 @@ def run_scriptwriter(topic: str, fact_report: dict, settings, job_dir: Path) -> 
     scenes = [{"index": i + 1, "narration": narration[i*chunk:(i+1)*chunk] or narration[-120:],
                "claim_ids": claim_ids, "visual": f"Generated illustration for part {i+1} (synthetic, not footage)",
                "on_screen_text": topic[:40], "asset": "", "duration_s": 12.0} for i in range(n)]
-    script = {"title": topic[:100], "narration_full": narration, "language": getattr(settings, "narration_lang", "bn"),
+    script = {"title": topic[:100], "narration_full": narration, "language": (getattr(settings, "narration_lang", "en") or "en"),
               "scenes": scenes, "version": 1}
     (job_dir / "script.json").write_text(json.dumps(script, ensure_ascii=False, indent=2), encoding="utf-8")
     return script

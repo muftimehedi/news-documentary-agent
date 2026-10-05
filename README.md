@@ -18,18 +18,18 @@ uv run newsdoc resume <job_id>       # resume a paused job (publish + record)
 uv run streamlit run src/news_documentary/ui/app.py  # operator UI
 ```
 
-To make a documentary in English instead of Bengali:
+To make a documentary in Bengali instead of English:
 ```bash
-NARRATION_LANG=en uv run newsdoc run --topic "global oil industry history"
+NARRATION_LANG=bn uv run newsdoc run --topic "..."
 ```
-(or set `NARRATION_LANG=en` permanently in `.env` / the Streamlit sidebar).
+(or set `NARRATION_LANG=bn` permanently in `.env` / the Streamlit sidebar).
 
 ## Keys for live mode (verified working, Oct 2026)
 | Job | What you need |
 |---|---|
 | LLM | `NEWS_MODEL=groq:openai/gpt-oss-120b` + `GROQ_API_KEY=...` (needs `langchain-groq`; other providers work via `provider:model` + their key) |
 | Live search | `TAVILY_API_KEY=...` (falls back to free RSS without it) |
-| Real voiceover | `TTS_PROVIDER=gtts` (gTTS supports Bengali `bn` and English; verified) |
+| Real voiceover | `TTS_PROVIDER=gtts` (gTTS: English + Bengali `bn`; verified) |
 | Real YouTube upload | `YOUTUBE_PUBLISH_MODE=real` + `YOUTUBE_CLIENT_SECRETS=client_secrets.json`, then `uv run newsdoc auth-youtube` |
 
 Without keys it runs in **FIXTURE** mode — outputs are labeled as test data (sample news, synthetic beeps, fake receipts), never presented as live.

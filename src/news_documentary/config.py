@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
 
     tts_provider: str = "fixture"  # fixture | gtts
-    narration_lang: str = "bn"
+    narration_lang: str = "en"  # default English; "bn" for Bengali
     doc_duration_seconds: int = 75
     video_aspect: str = "vertical"  # vertical | horizontal
 

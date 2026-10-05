@@ -1,4 +1,4 @@
-"""Media helpers: captions (SRT, Bengali-capable), FFmpeg render, verification."""
+"""Media helpers: captions (SRT, multilingual incl. Bengali shaping), FFmpeg render, verification."""
 from __future__ import annotations
 
 import json
@@ -20,7 +20,7 @@ def write_srt(scenes: list[dict], total_s: float, out_path: Path) -> Path:
 
 
 def render_documentary(job_dir: Path, scenes: list[dict], audio_path: Path, size: tuple[int, int],
-                       srt_path: Path, stills: list[Path]) -> dict:
+                       srt_path: Path, stills: list[Path], lang: str = "en") -> dict:
     """FFmpeg still-image documentary. Argument-list subprocess (no model-generated shell)."""
     job_dir = Path(job_dir)
     w, h = size
@@ -43,9 +43,9 @@ def render_documentary(job_dir: Path, scenes: list[dict], audio_path: Path, size
           "-i", str(audio_path), "-c:v", "libx264", "-pix_fmt", "yuv420p",
           "-c:a", "aac", "-shortest", str(concat)])
     final = job_dir / "documentary.mp4"
-    # Prefer stream captions (mov_text: reliable, keeps Bengali shaping in players).
+    # Prefer stream captions (mov_text: reliable, keeps shaping in players).
     # Burn-in via libass is attempted only when safe; any failure falls back to mov_text.
-    font = _find_bengali_font()
+    font = _find_font_for_lang(lang)
     burned = False
     if font:
         try:
@@ -92,13 +92,14 @@ def _probe_duration(p: Path) -> float:
     return float(r.stdout.strip())
 
 
-def _find_bengali_font() -> str | None:
+def _find_font_for_lang(lang: str = "en") -> str | None:
     import shutil
 
     if shutil.which("fc-list") is None:
         return None
+    code = "bn" if (lang or "en").lower().startswith("bn") else "en"
     try:
-        r = subprocess.run(["fc-list", ":lang=bn", "family"], capture_output=True, text=True, timeout=15)
+        r = subprocess.run(["fc-list", f":lang={code}", "family"], capture_output=True, text=True, timeout=15)
         for line in r.stdout.splitlines():
             fam = line.split(",")[0].strip()
             if fam:

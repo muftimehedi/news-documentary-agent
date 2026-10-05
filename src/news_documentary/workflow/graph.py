@@ -121,7 +121,7 @@ def n_prepare_media(s: JobState) -> dict:
     jd = _job_dir(st.job_root, s["job_id"])
     script = s.get("script", {}) or json.loads((jd / "script.json").read_text(encoding="utf-8"))
     tts = get_tts_adapter(st.tts_provider)
-    audio = tts.synthesize(script["narration_full"], script.get("language", "bn"), jd / "narration.wav")
+    audio = tts.synthesize(script["narration_full"], script.get("language", "en"), jd / "narration.wav")
     stills = []
     assets_meta = []
     for i, sc in enumerate(script["scenes"]):
@@ -151,7 +151,8 @@ def n_render(s: JobState) -> dict:
     arts = s.get("artifacts", {}) or {}
     man = json.loads((jd / "render_manifest.json").read_text(encoding="utf-8"))
     meta = render_documentary(jd, s.get("scenes", []), Path(man["audio"]["path"]),
-                              tuple(st.dimensions), Path(man["srt"]), [Path(p) for p in man["stills"]])
+                              tuple(st.dimensions), Path(man["srt"]), [Path(p) for p in man["stills"]],
+                              lang=(s.get("script", {}) or {}).get("language", "en"))
     arts = {**arts, "video": meta["video"], "thumbnail": meta["thumbnail"]}
     return {"artifacts": arts, "assets": {**(s.get("assets", {}) or {}), "render_meta": meta},
             "stage": "review", "status": "rendered",
@@ -176,7 +177,7 @@ def n_review(s: JobState) -> dict:
     # pronunciation: flag risky tokens we cannot verify
     risky = [w for w in (s.get("script", {}) or {}).get("narration_full", "").split() if w.isupper() and len(w) > 3]
     findings.append({"area": "pronunciation", "checked": bool(risky), "passed": True,
-                     "detail": f"flagged {risky[:5]} (cannot auto-verify Bengali prosody)" if risky else "no all-caps loanwords; prosody not auto-verifiable"})
+                     "detail": f"flagged {risky[:5]} (cannot auto-verify prosody)" if risky else "no all-caps loanwords; prosody not auto-verifiable"})
     passed = all(f["passed"] for f in findings if f["checked"])
     at = (s.get("attempts", 0) or 0)
     report = {"passed": passed, "findings": findings, "needs_revision": "" if passed else "fix flagged areas"}
