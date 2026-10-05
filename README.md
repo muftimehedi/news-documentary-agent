@@ -1,50 +1,53 @@
-# News Documentary Deep Agent (সংবাদ তথ্যচিত্র এজেন্ট)
+# News Documentary Deep Agent
 
-বাংলায় সহজ গাইড — কোডের নাম ইংরেজিতে।
+Researches recent news → verifies it → writes narration + scene plan → renders an FFmpeg video (voiceover + visuals + subtitles) → uploads to YouTube after your approval.
 
-## এটা কী করে?
-সাম্প্রতিক খবর খুঁজে → যাচাই করে → বাংলা ন্যারেশন + দৃশ্য পরিকল্পনা লেখে → কণ্ঠস্বর + ছবি + সাবটাইটেল দিয়ে FFmpeg ভিডিও বানায় → আপনি দেখে approve করলে YouTube-এ আপলোড করে।
+## Requirements
+- Python 3.12, `uv`, FFmpeg (`brew install ffmpeg`). Runs on Apple Silicon Macs and Linux.
 
-## দরকারি জিনিস
-- Python 3.12, `uv`, FFmpeg (`brew install ffmpeg`), Mac Apple Silicon / Linux দুটোতেই চলে।
-
-## চালানো (প্রথমবার)
+## Run it (first time)
 ```bash
 cd news-documentary-agent
-cp .env.example .env        # প্রয়োজনীয় key বসান
-uv sync                     # নির্ভরতা ইনস্টল
-uv run pytest -q            # টেস্ট
-uv run newsdoc run --topic ""        # ফিক্সচার/লাইভ রান (approval-এ থামবে)
-uv run newsdoc chat                 # Main Deep Agent-এর সঙ্গে সরাসরি চ্যাট (পরিকল্পনা/প্রতিনিধিত্ব)
-uv run newsdoc approve <job_id>      # অনুমোদন
-uv run newsdoc resume <job_id>       # থেমে থাকা কাজ আবার চালু
-uv run streamlit run src/news_documentary/ui/app.py  # অপারেটর UI
+cp .env.example .env        # fill in keys
+uv sync                     # install dependencies
+uv run pytest -q            # tests
+uv run newsdoc run --topic ""        # fixture/live run (pauses at approval)
+uv run newsdoc chat                 # chat directly with the Main Deep Agent
+uv run newsdoc approve <job_id>      # approve this video
+uv run newsdoc resume <job_id>       # resume a paused job (publish + record)
+uv run streamlit run src/news_documentary/ui/app.py  # operator UI
 ```
 
-## আসল (live) চালানোর চাবি
-| কাজ | কী লাগবে |
+To make a documentary in English instead of Bengali:
+```bash
+NARRATION_LANG=en uv run newsdoc run --topic "global oil industry history"
+```
+(or set `NARRATION_LANG=en` permanently in `.env` / the Streamlit sidebar).
+
+## Keys for live mode (verified working, Oct 2026)
+| Job | What you need |
 |---|---|
-| LLM (আসল গবেষণা/লেখা) | `.env`-এ `NEWS_MODEL=openai:gpt-4o-mini` + `OPENAI_API_KEY=...` (অথবা google/anthropic মডেল) |
-| লাইভ সার্চ | `TAVILY_API_KEY=...` (না থাকলে বিনামূল্যের RSS ব্যবহার হয়) |
-| আসল বাংলা কণ্ঠ | `TTS_PROVIDER=gtts` (gTTS বাংলা `bn` সমর্থন করে; যাচাইকৃত) |
-| আসল YouTube আপলোড | `YOUTUBE_PUBLISH_MODE=real` + `YOUTUBE_CLIENT_SECRETS=client_secrets.json`, তারপর `uv run newsdoc auth-youtube` |
+| LLM | `NEWS_MODEL=groq:openai/gpt-oss-120b` + `GROQ_API_KEY=...` (needs `langchain-groq`; other providers work via `provider:model` + their key) |
+| Live search | `TAVILY_API_KEY=...` (falls back to free RSS without it) |
+| Real voiceover | `TTS_PROVIDER=gtts` (gTTS supports Bengali `bn` and English; verified) |
+| Real YouTube upload | `YOUTUBE_PUBLISH_MODE=real` + `YOUTUBE_CLIENT_SECRETS=client_secrets.json`, then `uv run newsdoc auth-youtube` |
 
-চাবি ছাড়া চললে **FIXTURE** লেখা থাকবে — এটা পরীক্ষার ভুয়া খবর/কণ্ঠ/রসিদ, আসল নয়।
+Without keys it runs in **FIXTURE** mode — outputs are labeled as test data (sample news, synthetic beeps, fake receipts), never presented as live.
 
-## গুরুত্বপূর্ণ ধারণা (সহজ ভাষায়)
-- **Main Agent বনাম subagent বনাম tool**: Main Agent পরিকল্পনা করে ও ভাগ করে দেয়; subagent (গবেষক, যাচাইকারী, লেখক…) ছোট নির্দিষ্ট কাজ করে; tool হলো নিশ্চিত যন্ত্র (ফাইল লেখা, FFmpeg চালানো) — যন্ত্র ভুল করে না, ভাবেও না।
-- **LangChain বনাম LangGraph বনাম Deep Agents**: LangChain = মডেল ও tool-এর সংযোগ; LangGraph = ধাপে ধাপে কাজের মানচিত্র (থামা/আবার শুরু সহ); Deep Agents = LangChain/LangGraph-এর ওপর তৈরি প্রস্তুত এজেন্ট কাঠামো (পরিকল্পনা, subagent, ফাইল, স্মৃতি)। আমরা ভেতরের চাকা নতুন করে বানাইনি।
-- **AGENTS.md বনাম checkpoint বনাম long-term store**: AGENTS.md = স্থায়ী নিয়মের খাতা; checkpoint = চলমান কাজের সাময়িক স্মৃতি (বন্ধ করে আবার শুরু); long-term store = পছন্দ, পুরোনো বিষয়, সম্পাদকীয় জ্ঞানের স্থায়ী ভান্ডার।
+## Key concepts (plain English)
+- **Main Agent vs subagent vs tool**: the Main Agent plans and delegates; subagents (researcher, fact-checker, writer…) do narrow jobs with typed JSON deliverables; tools are deterministic workers (file writes, FFmpeg) — they don't think, they execute.
+- **LangChain vs LangGraph vs Deep Agents**: LangChain = model + tool integrations; LangGraph = the explicit stage workflow (pause/resume, checkpoints); Deep Agents = the ready-made agent harness on top (planning, subagents, filesystem, memory). We don't reimplement its internals.
+- **AGENTS.md vs checkpointer vs long-term store**: AGENTS.md = durable rules; checkpointer = short-term job/thread state for resume; store = long-term preferences, topic history, editorial knowledge.
 
-## YouTube সেটআপ (আসল আপলোড)
-1. Google Cloud-এ প্রজেক্ট → YouTube Data API v3 চালু → OAuth client (Desktop) → `client_secrets.json` ডাউনলোড।
-2. `.env`: `YOUTUBE_PUBLISH_MODE=real`, `YOUTUBE_CLIENT_SECRETS=/পথ/client_secrets.json`
-3. `uv run newsdoc auth-youtube` → ব্রাউজারে অনুমতি → `data/youtube_token.json` তৈরি (গোপন, কমিট নয়)।
-4. UI/CLI-তে approve → `unlisted` (ডিফল্ট) দিয়ে আপলোড; রসিদে ভিডিও ID/URL থাকবে।
+## YouTube setup (real uploads)
+1. Google Cloud project → enable YouTube Data API v3 → OAuth client (Desktop) → download `client_secrets.json`.
+2. `.env`: `YOUTUBE_PUBLISH_MODE=real`, `YOUTUBE_CLIENT_SECRETS=/path/client_secrets.json`
+3. `uv run newsdoc auth-youtube` → approve in browser → `data/youtube_token.json` is created (secret, never committed).
+4. Approve in UI/CLI → uploads as `unlisted` (default); the receipt carries the video ID/URL.
 
 ## Facebook/Instagram
-এখনো **অসমাপ্ত (milestone 5)** — Page অনুমতি/app review যাচাই না করে দাবি করা হয়নি। কোডে স্পষ্ট stub ত্রুটি দেখায়।
+Still **unfinished (milestone 5)** — no permissions/app review verified yet, so the code raises an explicit stub error instead of claiming support.
 
-## ফাইল কোথায় থাকে?
-- `data/jobs/<job_id>/` — গবেষণা, স্ক্রিপ্ট, অডিও, ভিডিও, রসিদ (প্রকাশিত প্রমাণ মুছবেন না)।
-- `data/newsdoc.sqlite` — কাজ, প্রকাশনার intent (ডুপ্লিকেট রোধে UNIQUE), পছন্দ।
+## Where files live
+- `data/jobs/<job_id>/` — research, script, audio, video, receipts (never delete published evidence).
+- `data/newsdoc.sqlite` — jobs, publication intents (UNIQUE key prevents duplicates), preferences.

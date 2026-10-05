@@ -1,6 +1,6 @@
 # AGENTS.md — durable operating instructions for this channel/repo
 
-- Style: beginner-friendly Bangla explanations; English identifiers in code.
+- Style: plain-English explanations; English identifiers in code.
 - Main Agent plans + delegates via `task` tool; subagents get narrow prompts, minimal context, typed JSON deliverables.
 - Deterministic work (FFmpeg render, YouTube upload, sqlite writes) lives in tools/workers, never as LLM subagents.
 - Research must use retrieval (RSS/Tavily), never model memory. Record full source metadata.
