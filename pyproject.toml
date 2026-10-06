@@ -13,6 +13,8 @@ dependencies = [
   "pydantic>=2.7",
   "pydantic-settings==2.15.0",
   "feedparser>=6.0.11",
+  "fpdf2>=2.7",
+  "pypdf>=4.0",
   "gTTS==2.5.4",
   "Pillow>=10.0",
   "streamlit==1.65.0",
@@ -34,6 +36,7 @@ dev = ["pytest>=8.0", "ruff>=0.6"]
 
 [project.scripts]
 newsdoc = "news_documentary.cli:app"
+newsdoc-worker = "news_documentary.service_worker:main"
 
 [build-system]
 requires = ["hatchling"]

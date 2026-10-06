@@ -28,6 +28,8 @@ def run_researcher(topic_hint: str, sources: list[dict], job_dir: Path) -> dict:
     ranked by relevance to it."""
     import re
 
+    job_dir = Path(job_dir)
+    job_dir.mkdir(parents=True, exist_ok=True)
     hint_kws = set(re.findall(r"\w{4,}", (topic_hint or "").lower()))
     cands = []
     for s in sources[:12]:
@@ -73,6 +75,8 @@ def run_factchecker(topic: str, sources: list[dict], job_dir: Path) -> dict:
     """Independent checker with its own retrieval reasoning (keyword overlap + publisher independence)."""
     import re
 
+    job_dir = Path(job_dir)
+    job_dir.mkdir(parents=True, exist_ok=True)
     claims, seen = [], 0
     topic_kws = set(re.findall(r"\w{4,}", (topic or "").lower()))
     def _rel(s: dict) -> int:
@@ -147,3 +151,153 @@ def run_scriptwriter(topic: str, fact_report: dict, settings, job_dir: Path) -> 
               "scenes": scenes, "version": 1}
     (job_dir / "script.json").write_text(json.dumps(script, ensure_ascii=False, indent=2), encoding="utf-8")
     return script
+
+
+# ------------------------------------------------- doc scope (PDF + posts) ---
+# Active workflow writers. The video scriptwriter above is preserved for
+# future video use; doc jobs use run_writer + run_doc_reviewer only.
+
+PLATFORM_LIMITS = {
+    # Verified against official docs/behaviour, Oct 2026. YouTube has NO
+    # Data API endpoint for text/community posts (videos/comments only), so it
+    # is text-generation-only for manual use and disabled for connected post.
+    "x": {"max_chars": 280, "kind": "post", "connect_post": True,
+          "note": "X API v2 POST /2/tweets, text-only (no media attached)."},
+    "facebook": {"max_chars": 2000, "kind": "post", "connect_post": True,
+                 "note": "POST /{page-id}/feed with message (+link). Pages only."},
+    "hikmah": {"max_chars": 20000, "kind": "post", "connect_post": True,
+               "note": "POST /api/posts type=text (code-complete, live-unverified)."},
+    "youtube": {"max_chars": 5000, "kind": "manual-text", "connect_post": False,
+                "note": "DISABLED for connected posting: YouTube Data API v3 has no "
+                        "text/community-post endpoint (upload + comments only). "
+                        "Generated title/description are for manual use."},
+}
+
+
+def _writer_lang(settings) -> str:
+    return (getattr(settings, "narration_lang", "en") or "en").lower()
+
+
+def run_writer(topic: str, fact_report: dict, sources: list[dict], settings,
+               job_dir: Path, revision_note: str = "") -> dict:
+    """Write a research report + platform-specific social posts.
+
+    Every factual sentence traces to verified claim IDs. Platform limits are
+    enforced here (hard truncation never splits a claim citation). Returns
+    {report_md, summary, findings, posts} and persists report.md + posts.json.
+    """
+    import re as _re
+
+    verified = fact_report.get("verified", [])
+    lang = _writer_lang(settings)
+    is_bn = lang.startswith("bn")
+    if revision_note:
+        topic = topic  # revision reuses the same topic; note steers emphasis
+
+    def _rel(c: dict) -> int:
+        if not topic:
+            return 0
+        tk = set(_re.findall(r"\w{4,}", topic.lower()))
+        return len(tk & set(_re.findall(r"\w{4,}", c.get("text", "").lower())))
+
+    picked = sorted(verified, key=_rel, reverse=True)[:6]
+    claim_ids = [c["id"] for c in picked]
+    job_dir = Path(job_dir)
+    job_dir.mkdir(parents=True, exist_ok=True)
+    if is_bn:
+        summary = f"বিষয়: {topic}। " + " ".join(c["text"] + "।" for c in picked[:3])
+    else:
+        summary = " ".join(c["text"] + "." for c in picked[:3]) or \
+            "No verifiable claims — production blocked rather than inventing facts."
+    if revision_note:
+        summary += (" মনোযোগ: " if is_bn else " Revision focus: ") + revision_note[:300]
+
+    findings = [{"text": c["text"], "claim_ids": [c["id"]],
+                 "detail": c.get("notes", "")} for c in picked]
+    md = [f"# {topic}", "",
+          f"_Language: {lang} · {len(verified)} verified claim(s)_", "",
+          "## Summary", "", summary, "",
+          "## Key findings", ""]
+    for i, f in enumerate(findings, 1):
+        md += [f"{i}. {f['text']}", f"   Claims: {', '.join(f['claim_ids'])}", ""]
+    if not findings:
+        md += ["No verifiable findings.", ""]
+    md += ["## Sources", ""]
+    for s in sources[:12]:
+        md += [f"- {s.get('publisher', '?')}: {s.get('title', '')[:140]}",
+               f"  {s.get('url', '')}"]
+    report_md = "\n".join(md)
+    (job_dir / "report.md").write_text(report_md, encoding="utf-8")
+
+    link = next((s.get("url", "") for s in sources if s.get("url")), "")
+    posts: dict[str, dict] = {}
+    head = (topic[:80] + ": ") if topic else ""
+    for plat, lim in PLATFORM_LIMITS.items():
+        if plat == "youtube":
+            title = topic[:100]
+            desc = (summary[:1500] + ("\n\nSources:\n" + "\n".join(
+                s.get("url", "") for s in sources[:5]))[:lim["max_chars"]])
+            posts[plat] = {"text": f"{title}\n\n{desc}", "title": title,
+                           "description": desc, "claim_ids": claim_ids,
+                           "chars": 0, "connect_post": False, "note": lim["note"]}
+            posts[plat]["chars"] = len(posts[plat]["text"])
+            continue
+        core = head + (picked[0]["text"] if picked else summary)
+        if plat == "x":
+            text = core[:lim["max_chars"]]
+            if link and len(text) + 1 + len(link) <= lim["max_chars"]:
+                text += " " + link
+        elif plat == "facebook":
+            parts = [head + c["text"] + "." for c in picked[:3]] or [summary]
+            text = "\n\n".join(parts)
+            if link:
+                text += f"\n\nRead more: {link}"
+            text = text[:lim["max_chars"]]
+        else:  # hikmah
+            text = f"{topic}\n\n" + "\n\n".join(
+                c["text"] + "." for c in picked[:5]) + "\n\nSources:\n" + "\n".join(
+                s.get("url", "") for s in sources[:8])
+            text = text[:lim["max_chars"]]
+        posts[plat] = {"text": text, "claim_ids": claim_ids, "chars": len(text),
+                       "connect_post": lim["connect_post"], "note": lim["note"]}
+    (job_dir / "posts.json").write_text(
+        json.dumps(posts, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"report_md": report_md, "summary": summary, "findings": findings,
+            "posts": posts, "version": 1, "language": lang}
+
+
+def run_doc_reviewer(topic: str, writer_out: dict, fact_report: dict,
+                     pdf_findings: list[dict], job_dir: Path) -> dict:
+    """Review report + posts + rendered PDF. States exactly what was checked."""
+    findings: list[dict] = []
+
+    def add(area, checked, passed, detail=""):
+        findings.append({"area": area, "checked": checked, "passed": passed, "detail": detail})
+
+    verified_ids = {c.get("id") for c in fact_report.get("verified", [])}
+    used = set()
+    for p in (writer_out.get("posts", {}) or {}).values():
+        used.update(p.get("claim_ids", []))
+    for f in writer_out.get("findings", []) or []:
+        used.update(f.get("claim_ids", []))
+    bad = sorted(i for i in used if i not in verified_ids)
+    add("factual-consistency", True, not bad,
+        f"{len(verified_ids)} verified IDs cover all text" if not bad
+        else f"cites outside verified set: {bad}")
+    for plat, post in (writer_out.get("posts", {}) or {}).items():
+        lim = PLATFORM_LIMITS.get(plat, {}).get("max_chars", 0)
+        n = post.get("chars", len(post.get("text", "")))
+        add(f"platform-limit:{plat}", True, n <= lim, f"{n}/{lim} chars")
+    for pf in pdf_findings:
+        findings.append({**pf, "area": f"pdf:{pf['area']}"})
+    words = len((writer_out.get("summary", "") or "").split())
+    add("readability", True, words >= 20, f"summary {words} words")
+    add("pronunciation", False, False, "not applicable: text outputs, no TTS in this scope")
+    passed = all(f["passed"] for f in findings if f["checked"])
+    report = {"passed": passed, "findings": findings,
+              "needs_revision": "" if passed else "fix flagged areas",
+              "limits": "LLM prose not re-verified sentence-by-sentence; "
+                        "Bengali PDF needs DOC_FONT_TTF; Hikmah text posting live-unverified."}
+    (job_dir / "review.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    return report

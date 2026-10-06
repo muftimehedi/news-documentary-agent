@@ -16,10 +16,15 @@ class Settings(BaseSettings):
     google_api_key: str = ""
     anthropic_api_key: str = ""
 
-    tts_provider: str = "fixture"  # fixture | gtts
+    tts_provider: str = "fixture"  # fixture | gtts (legacy video scope; unused by doc jobs)
     narration_lang: str = "en"  # default English; "bn" for Bengali
-    doc_duration_seconds: int = 75
-    video_aspect: str = "vertical"  # vertical | horizontal
+    doc_duration_seconds: int = 75  # legacy video scope; unused by doc jobs
+    video_aspect: str = "vertical"  # legacy video scope; unused by doc jobs
+    video_provider: str = "stills"  # legacy video scope (stills | veo); unused by doc jobs
+    veo_model: str = "veo-3.1-generate-preview"  # legacy video scope; unused by doc jobs
+    job_type: str = "report"  # report | social (active scope); video = legacy only
+    social_platforms: str = "x,facebook,hikmah"  # comma-separated for social jobs
+    revision_note: str = ""  # explicit user revision guidance (set per-job, not global)
 
     timezone: str = "Asia/Dhaka"
     news_window_hours: int = 24

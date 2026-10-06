@@ -37,6 +37,21 @@ def build_subagents():
     ]
 
 
+def build_doc_subagents():
+    """Active doc-scope delegation: researcher, fact-checker, writer, reviewer.
+    Media preparer is intentionally absent (video scope disabled)."""
+    return [
+        {"name": "researcher", "description": "Discover recent topics, collect primary reporting + metadata, rank candidates.",
+         "system_prompt": prompts.RESEARCH_PROMPT, "tools": [news_search, save_artifact, rank_topics]},
+        {"name": "fact-checker", "description": "Independently verify claims with retrieval; report verified/disputed/unresolved.",
+         "system_prompt": prompts.FACTCHECK_PROMPT, "tools": [news_search, save_artifact, extract_claims, check_claim_support]},
+        {"name": "writer", "description": "Write original report + platform-specific social posts grounded in verified claims.",
+         "system_prompt": prompts.WRITER_PROMPT, "tools": [save_artifact]},
+        {"name": "reviewer", "description": "Inspect factual consistency, platform limits, PDF quality, sourcing.",
+         "system_prompt": prompts.DOC_REVIEW_PROMPT, "tools": [save_artifact]},
+    ]
+
+
 def cost_guard_middleware(max_calls: int = 40):
     """Verified API: langchain.agents.middleware.wrap_tool_call decorator."""
     from langchain.agents.middleware import wrap_tool_call
@@ -86,6 +101,42 @@ def create_main_agent(settings, checkpointer=None, store=None, slim: bool = Fals
     )
     # Only pass skills/memory when the paths exist (documented params).
     # Skipped in slim mode to stay under tight TPM limits.
+    if not slim and Path(skills_dir).exists():
+        kwargs["skills"] = [skills_dir]
+    if not slim and Path(agents_md).exists():
+        kwargs["memory"] = [agents_md]
+    if checkpointer is not None:
+        kwargs["checkpointer"] = checkpointer
+    if store is not None:
+        kwargs["store"] = store
+    return create_deep_agent(**kwargs)
+
+
+def create_doc_agent(settings, checkpointer=None, store=None, slim: bool = False):
+    """Doc-scope Main Deep Agent: researcher + fact-checker + writer + reviewer.
+    No media-preparer, no TTS/FFmpeg/Veo tools. Fixture mode mirrors create_main_agent."""
+    from deepagents import create_deep_agent
+
+    from pathlib import Path
+
+    raw = (getattr(settings, "news_model", "") or "").strip()
+    if raw:
+        model = raw
+    else:
+        from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
+
+        model = GenericFakeChatModel(messages=iter(["FIXTURE harness response (no live LLM configured)"]))
+    skills_dir = str(Path(__file__).resolve().parents[3] / "skills")
+    agents_md = str(Path(__file__).resolve().parents[3] / "AGENTS.md")
+    kwargs: dict = dict(
+        model=model,
+        system_prompt=prompts.DOC_MAIN_PROMPT,
+        tools=[news_search, save_artifact] if slim else
+        [news_search, save_artifact, rank_topics, extract_claims, check_claim_support],
+        subagents=build_doc_subagents(),
+        middleware=[cost_guard_middleware(getattr(settings, "max_model_calls", 40))],
+        interrupt_on={"publish_text": True},
+    )
     if not slim and Path(skills_dir).exists():
         kwargs["skills"] = [skills_dir]
     if not slim and Path(agents_md).exists():

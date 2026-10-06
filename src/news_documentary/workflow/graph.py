@@ -120,11 +120,42 @@ def n_prepare_media(s: JobState) -> dict:
     st = _settings_of(s)
     jd = _job_dir(st.job_root, s["job_id"])
     script = s.get("script", {}) or json.loads((jd / "script.json").read_text(encoding="utf-8"))
-    tts = get_tts_adapter(st.tts_provider)
-    audio = tts.synthesize(script["narration_full"], script.get("language", "en"), jd / "narration.wav")
+    # Real English TTS adapter (gtts) or explicitly labeled fixture beeps.
+    # No silent fallback: a real-TTS failure raises instead of beeping.
+    tts_name = getattr(st, "tts_provider", "fixture")
+    if tts_name not in ("fixture", "gtts"):
+        raise RuntimeError(f"Unknown TTS_PROVIDER={tts_name!r} (expected 'fixture' or 'gtts').")
+    tts = get_tts_adapter(tts_name)
+    try:
+        audio = tts.synthesize(script["narration_full"], script.get("language", "en"), jd / "narration.wav")
+    except Exception as e:
+        if tts_name == "gtts":
+            raise RuntimeError(f"Real TTS (gtts) failed — refusing silent beep fallback: {e}") from e
+        raise
+    # Scene visuals: per-scene Veo clips when configured, else generated stills.
+    # Veo is per-scene (one 8s model call never yields a finished documentary).
     stills = []
     assets_meta = []
+    video_provider = getattr(st, "video_provider", "stills") or "stills"
+    aspect = "vertical" if tuple(st.dimensions) == (1080, 1920) else "horizontal"
     for i, sc in enumerate(script["scenes"]):
+        if video_provider == "veo":
+            from ..providers.veo import UnconfiguredVeo, generate_scene_clip, veo_enabled, veo_model_id
+
+            if not veo_enabled(st):
+                raise UnconfiguredVeo(
+                    "video_provider=veo but Veo unconfigured: set VEO_ENABLED=1, "
+                    f"VEO_MODEL={veo_model_id(st)}, GOOGLE_API_KEY with billing. "
+                    "Use video_provider=stills for offline renders.")
+            clip = generate_scene_clip(sc.get("narration", "")[:400], jd / f"clip_{i}.mp4",
+                                       aspect, st)
+            stills.append(clip["path"])
+            assets_meta.append({"path": clip["path"], "source": f"generated:veo:{clip['model']}",
+                                "license": "generated-reconstruction", "synthetic": True,
+                                "attribution": "AI-generated reconstruction (Google Veo) — not authentic footage",
+                                "usage": "free to use in this documentary"})
+            sc["asset"] = clip["path"]
+            continue
         p = jd / f"still_{i}.png"
         meta = make_still(p, sc.get("on_screen_text", "News"), st.dimensions, i)
         stills.append(str(p))
@@ -135,14 +166,21 @@ def n_prepare_media(s: JobState) -> dict:
     for sc in script["scenes"]:
         sc["duration_s"] = round(per, 2)
     srt = write_srt(script["scenes"], total, jd / "captions.srt")
-    manifest = {"audio": audio, "stills": stills, "srt": str(srt), "size": list(st.dimensions)}
+    manifest = {"audio": audio, "stills": stills, "srt": str(srt), "size": list(st.dimensions),
+                "video_provider": video_provider,
+                "provenance": assets_meta}
     (jd / "render_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    (jd / "provenance.json").write_text(json.dumps(
+        {"audio": {"path": audio["path"], "fixture": audio.get("fixture", False),
+                   "note": "FIXTURE beeps" if audio.get("fixture") else "real TTS voice"},
+         "visuals": assets_meta,
+         "sources": s.get("sources", [])[:20]}, ensure_ascii=False, indent=2), encoding="utf-8")
     arts = {**(s.get("artifacts", {}) or {}), "audio": audio["path"], "captions": str(srt),
-            "manifest": str(jd / "render_manifest.json")}
+            "manifest": str(jd / "render_manifest.json"), "provenance": str(jd / "provenance.json")}
     return {"scenes": script["scenes"], "assets": {"audio": audio, "stills": stills, "meta": assets_meta},
             "artifacts": arts, "stage": "render", "status": "media-prepared",
             "cost_usd": (s.get("cost_usd", 0.0) or 0.0) + (0.0 if audio.get("fixture") else 0.05),
-            "log": _log(s, f"media: tts={tts.name} {total:.1f}s, {len(stills)} stills")}
+            "log": _log(s, f"media: tts={tts.name} {total:.1f}s, {len(stills)} visuals via {video_provider}")}
 
 
 def n_render(s: JobState) -> dict:

@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://newsdoc.local/contracts/v2/job.json",
+  "title": "NewsDoc Contracts v2 (doc scope: PDF reports + social posts)",
+  "description": "Supersedes v1 for new jobs. Video stages/artifacts (v1) remain valid for preserved history only; active workflows use report/social stages.",
+  "version": "2",
+  "definitions": {
+    "jobType": { "type": "string", "enum": ["report", "social"], "default": "report" },
+    "jobStatus": {
+      "type": "string",
+      "enum": ["queued", "leased", "running", "awaiting-approval", "approved", "ready_for_user", "publishing", "published", "failed", "cancelled", "blocked-no-evidence", "reviewed-failed", "done"]
+    },
+    "docStage": {
+      "type": "string",
+      "enum": ["discover", "choose_topic", "research", "fact_check", "write", "review", "approval", "publish", "record_result", "done"]
+    },
+    "productionSettings": {
+      "type": "object",
+      "properties": {
+        "topic": { "type": "string" },
+        "job_type": { "$ref": "#/definitions/jobType" },
+        "platforms": { "type": "array", "items": { "type": "string" }, "default": ["x", "facebook", "hikmah"] },
+        "language": { "type": "string", "default": "en", "description": "Default en; bn supported (PDF needs DOC_FONT_TTF)" },
+        "duration_seconds": { "type": "number" },
+        "aspect_ratio": { "type": "string" },
+        "revision_note": { "type": "string", "description": "User revision guidance for the write stage" }
+      },
+      "required": ["topic"]
+    },
+    "socialPost": {
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "claim_ids": { "type": "array", "items": { "type": "string" } },
+        "chars": { "type": "integer" },
+        "connect_post": { "type": "boolean", "description": "False = disabled for connected posting (e.g. YouTube text)" },
+        "note": { "type": "string" }
+      },
+      "required": ["text", "claim_ids", "connect_post"]
+    },
+    "textPublishReview": {
+      "type": "object",
+      "properties": {
+        "job_id": { "type": "string" },
+        "content_hash": { "type": "string", "description": "sha256 over platform texts + selections" },
+        "texts": { "type": "object", "description": "platform -> final text (user-edited allowed before review)" },
+        "selections": { "type": "array" },
+        "posts_hash": { "type": "string" }
+      },
+      "required": ["job_id", "content_hash", "texts", "selections"]
+    }
+  }
+}

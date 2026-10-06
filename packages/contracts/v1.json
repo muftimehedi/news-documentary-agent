@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://newsdoc.local/contracts/v1/job.json",
+  "title": "NewsDoc Contracts v1",
+  "description": "Versioned typed contracts between Express API and Python worker. Queue payloads carry job IDs and artifact references, never large media or full research documents.",
+  "version": "1",
+  "definitions": {
+    "jobId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{1,64}$" },
+    "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "jobStatus": {
+      "type": "string",
+      "enum": ["queued", "leased", "running", "awaiting-approval", "approved", "publishing", "published", "failed", "cancelled", "blocked-no-evidence", "reviewed-failed", "done"]
+    },
+    "jobStage": {
+      "type": "string",
+      "enum": ["discover", "choose_topic", "research", "fact_check", "script", "prepare_media", "render", "review", "approval", "publish", "record_result", "done"]
+    },
+    "productionSettings": {
+      "type": "object",
+      "properties": {
+        "topic": { "type": "string" },
+        "language": { "type": "string", "default": "en", "description": "Default en; bn supported" },
+        "duration_seconds": { "type": "number", "default": 75 },
+        "aspect_ratio": { "type": "string", "enum": ["vertical", "horizontal"], "default": "vertical" },
+        "narration_style": { "type": "string", "default": "neutral" },
+        "tts_provider": { "type": "string", "enum": ["fixture", "gtts"], "default": "fixture" },
+        "video_provider": { "type": "string", "enum": ["stills", "veo"], "default": "stills" },
+        "veo_model": { "type": "string", "default": "veo-3.1-generate-preview" }
+      },
+      "required": ["topic"]
+    },
+    "jobCreate": {
+      "type": "object",
+      "properties": {
+        "topic": { "type": "string" },
+        "settings": { "$ref": "#/definitions/productionSettings" }
+      },
+      "required": ["topic"]
+    },
+    "jobRecord": {
+      "type": "object",
+      "properties": {
+        "job_id": { "$ref": "#/definitions/jobId" },
+        "owner_id": { "$ref": "#/definitions/ownerId" },
+        "thread_id": { "type": "string" },
+        "topic": { "type": "string" },
+        "status": { "$ref": "#/definitions/jobStatus" },
+        "stage": { "$ref": "#/definitions/jobStage" },
+        "settings": { "$ref": "#/definitions/productionSettings" },
+        "worker_id": { "type": ["string", "null"] },
+        "lease_expires_at": { "type": ["string", "null"] },
+        "attempts": { "type": "integer" },
+        "created_at": { "type": "string" },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["job_id", "owner_id", "topic", "status", "stage"]
+    },
+    "progressEvent": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "job_id": { "$ref": "#/definitions/jobId" },
+        "kind": { "type": "string", "description": "Readable label, e.g. research-started, fact-check-completed, script-ready, generating-narration, rendering-video, video-ready, upload-completed" },
+        "message": { "type": "string" },
+        "stage": { "$ref": "#/definitions/jobStage" },
+        "status": { "type": "string" },
+        "data": { "type": "object" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["job_id", "kind", "message"]
+    },
+    "artifactRef": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "e.g. video_mp4, thumbnail_jpg, subtitles_srt, script_json, research_json" },
+        "path": { "type": "string", "description": "Server-side relative path; clients fetch via authorized download URL" },
+        "content_type": { "type": "string" },
+        "size_bytes": { "type": "integer" },
+        "sha256": { "type": "string" }
+      },
+      "required": ["name", "path"]
+    },
+    "chatMessage": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "thread_id": { "type": "string" },
+        "owner_id": { "$ref": "#/definitions/ownerId" },
+        "role": { "type": "string", "enum": ["user", "agent"] },
+        "content": { "type": "string" },
+        "job_id": { "type": ["string", "null"] },
+        "created_at": { "type": "string" }
+      },
+      "required": ["thread_id", "role", "content"]
+    },
+    "accountRef": {
+      "type": "object",
+      "properties": {
+        "account_id": { "type": "string" },
+        "platform": { "type": "string", "enum": ["youtube", "facebook", "x", "hikmah", "fixture"] },
+        "label": { "type": "string" },
+        "visibility": { "type": "string", "enum": ["public", "unlisted", "private"] }
+      },
+      "required": ["account_id", "platform"]
+    },
+    "publishReview": {
+      "type": "object",
+      "properties": {
+        "job_id": { "$ref": "#/definitions/jobId" },
+        "video_sha256": { "type": "string" },
+        "script_version": { "type": "integer" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "selections": { "type": "array", "items": { "$ref": "#/definitions/accountRef" } },
+        "metadata_hash": { "type": "string" }
+      },
+      "required": ["job_id", "video_sha256", "title", "selections"]
+    },
+    "publishResult": {
+      "type": "object",
+      "properties": {
+        "platform": { "type": "string" },
+        "account_id": { "type": "string" },
+        "status": { "type": "string", "enum": ["succeeded", "succeeded-fixture", "failed-permanent", "failed-retryable", "unknown-timeout", "skipped"] },
+        "remote_id": { "type": "string" },
+        "url": { "type": "string" },
+        "note": { "type": "string" },
+        "fixture": { "type": "boolean" }
+      },
+      "required": ["platform", "status"]
+    }
+  }
+}
