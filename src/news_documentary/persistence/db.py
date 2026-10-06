@@ -29,7 +29,21 @@ def migrate(db_path: str) -> None:
       id INTEGER PRIMARY KEY AUTOINCREMENT, topic TEXT, urls TEXT, created_at TEXT);
     CREATE TABLE IF NOT EXISTS preferences(
       key TEXT PRIMARY KEY, value TEXT);
+    CREATE TABLE IF NOT EXISTS accounts(
+      id TEXT PRIMARY KEY, owner TEXT NOT NULL, platform TEXT NOT NULL,
+      label TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'connected',
+      public_meta TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT, updated_at TEXT);
+    CREATE TABLE IF NOT EXISTS publications(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      logical_key TEXT UNIQUE, job_id TEXT, destination TEXT, artifact_hash TEXT,
+      remote_id TEXT, url TEXT, visibility TEXT, status TEXT, response TEXT, created_at TEXT);
     """)
+    for col in ("account_id TEXT DEFAULT ''", "owner TEXT DEFAULT ''"):
+        try:
+            c.execute(f"ALTER TABLE publications ADD COLUMN {col}")
+        except Exception:
+            pass
     c.commit(); c.close()
 
 

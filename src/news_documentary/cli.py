@@ -41,16 +41,39 @@ def cmd_resume(args) -> None:
 
 
 def cmd_auth_youtube(args) -> None:
-    st = get_settings()
     from google_auth_oauthlib.flow import InstalledAppFlow
 
+    from .persistence import vault as V
+    from .publishing.adapters import get_adapter
+
+    st = get_settings()
+    export_keys_to_env(st)
+    label = getattr(args, "account", "youtube-main")
+    owner = V.current_owner(st)
     flow = InstalledAppFlow.from_client_secrets_file(
         st.youtube_client_secrets or "client_secrets.json",
         ["https://www.googleapis.com/auth/youtube.upload"])
     creds = flow.run_local_server(port=0)
-    Path(st.youtube_token_file).parent.mkdir(parents=True, exist_ok=True)
-    Path(st.youtube_token_file).write_text(creds.to_json(), encoding="utf-8")
-    print(f"Saved token to {st.youtube_token_file}. Never commit this file.")
+    dest = V.vault_dir(st.db_path) / f"yt-{label}.token.json".replace(" ", "_")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(creds.to_json(), encoding="utf-8")
+    import os as _os
+    _os.chmod(dest, 0o600)
+    info = get_adapter("youtube").verify({"token_file": str(dest)})
+    acc = V.connect_account(st.db_path, owner, "youtube", label,
+                            {"token_file": str(dest)}, info)
+    print(f"Connected YouTube as {info.get('account')} (account {acc['id']}). Nothing published.")
+
+
+def cmd_accounts(args) -> None:
+    import json as _json
+
+    from .persistence import vault as V
+
+    st = get_settings()
+    owner = V.current_owner(st)
+    for a in V.list_accounts(st.db_path, owner):
+        print(_json.dumps({k: a[k] for k in ("id", "platform", "label", "status", "public_meta")}))
 
 
 def cmd_chat(args) -> None:
@@ -109,7 +132,8 @@ def app() -> None:
     a = sub.add_parser("approve"); a.add_argument("job_id"); a.add_argument("--destinations", default="youtube"); a.set_defaults(f=cmd_approve)
     rs = sub.add_parser("resume"); rs.add_argument("job_id"); rs.set_defaults(f=cmd_resume)
     ch = sub.add_parser("chat"); ch.add_argument("--thread", default="chat-1"); ch.set_defaults(f=cmd_chat)
-    au = sub.add_parser("auth-youtube"); au.set_defaults(f=cmd_auth_youtube)
+    au = sub.add_parser("auth-youtube"); au.add_argument("--account", default="youtube-main"); au.set_defaults(f=cmd_auth_youtube)
+    la = sub.add_parser("accounts"); la.set_defaults(f=cmd_accounts)
     sc = sub.add_parser("schedule-hint"); sc.set_defaults(f=cmd_schedule_hint)
     ns = p.parse_args()
     ns.f(ns)
